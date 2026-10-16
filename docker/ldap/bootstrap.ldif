@@ -1,0 +1,52 @@
+# ==============================================================================
+# OSINT Platform - OpenLDAP Initial Seed Directory Data
+# ==============================================================================
+
+# Organizational Units
+dn: ou=groups,dc=osint,dc=local
+objectClass: top
+objectClass: organizationalUnit
+ou: groups
+
+dn: ou=users,dc=osint,dc=local
+objectClass: top
+objectClass: organizationalUnit
+ou: users
+
+# Users
+dn: uid=admin_user,ou=users,dc=osint,dc=local
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+cn: OSINT Admin
+sn: Admin
+givenName: OSINT
+uid: admin_user
+mail: admin@osint.local
+userPassword: AdminPassword123!
+
+dn: uid=viewer_user,ou=users,dc=osint,dc=local
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+cn: OSINT Viewer
+sn: Viewer
+givenName: OSINT
+uid: viewer_user
+mail: viewer@osint.local
+userPassword: ViewerPassword123!
+
+# Groups for Role Mapping
+dn: cn=admins,ou=groups,dc=osint,dc=local
+objectClass: top
+objectClass: groupOfNames
+cn: admins
+member: uid=admin_user,ou=users,dc=osint,dc=local
+
+dn: cn=viewers,ou=groups,dc=osint,dc=local
+objectClass: top
+objectClass: groupOfNames
+cn: viewers
+member: uid=viewer_user,ou=users,dc=osint,dc=local
