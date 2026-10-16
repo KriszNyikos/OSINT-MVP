@@ -3,8 +3,8 @@
     OSINT Platform MVP - Docker Initialization and Startup Script
 
 .DESCRIPTION
-    Initializes the local environment (.env), starts MySQL, OpenLDAP, and Keycloak,
-    and displays service endpoints and credentials.
+    Initializes the local environment (.env), starts MySQL, OpenLDAP, Keycloak,
+    .NET Web API Backend, and Angular SPA Frontend, and displays service endpoints.
 #>
 
 $ErrorActionPreference = "Stop"
@@ -33,16 +33,21 @@ try {
 }
 
 # 3. Start containers
-Write-Host "`n[INFO] Starting infrastructure containers (docker compose up -d)..." -ForegroundColor Yellow
-docker compose up -d
+Write-Host "`n[INFO] Starting all platform containers (docker compose up -d --build)..." -ForegroundColor Yellow
+docker compose up -d --build
 
 # 4. Container status
 Write-Host "`n[INFO] Container status:" -ForegroundColor Yellow
 docker compose ps
 
 Write-Host "`n==========================================================" -ForegroundColor Cyan
-Write-Host "  Infrastructure Services and Connection Details         " -ForegroundColor Cyan
+Write-Host "  Platform Services and Connection Details               " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "Frontend (Angular SPA):  http://localhost:4200" -ForegroundColor Green
+Write-Host "Backend (.NET Web API):  http://localhost:5000" -ForegroundColor Green
+Write-Host "  - Health Check:        http://localhost:5000/api/health" -ForegroundColor Gray
+Write-Host "  - OpenAPI Schema:      http://localhost:5000/openapi/v1.json" -ForegroundColor Gray
+Write-Host ""
 Write-Host "Keycloak Admin Console:  http://localhost:8080" -ForegroundColor White
 Write-Host "  - Username:            admin" -ForegroundColor Gray
 Write-Host "  - Password:            admin_password_dev" -ForegroundColor Gray

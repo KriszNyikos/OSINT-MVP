@@ -10,11 +10,11 @@ This project is a technical Minimum Viable Product (MVP) for an open-source inte
 ```mermaid
 graph TD
     subgraph Docker Compose Infrastructure
-        LDAP["OpenLDAP (Directory Service)<br>Seed: admin_user, viewer_user"]
+        LDAP["OpenLDAP 1.5 (Directory Service)<br>Seed: admin_user, viewer_user"]
         KC["Keycloak 24 (IAM / OIDC Provider)<br>Realm: osint-realm (auto-imported)"]
         MYSQL["MySQL 8.0 (Persistent RDBMS)<br>Databases: osint_db, keycloak_db"]
-        BE["[Upcoming] .NET Web API<br>EF Core, JWT Validation, Collectors"]
-        FE["[Upcoming] Angular SPA<br>OIDC PKCE, Dashboard, Search UI"]
+        BE[".NET 10 Web API (Modular Monolith)<br>EF Core, JWT Validation, Collectors"]
+        FE["Angular 22 SPA Client<br>OIDC PKCE, Dashboard, Search UI"]
     end
 
     LDAP -->|User Federation & Role Mapping| KC
@@ -26,33 +26,73 @@ graph TD
 
 ---
 
-## Project Structure & Responsibilities
+## Project Structure & Modular Separation of Concerns
 
 The codebase follows a strict separation of concerns as mandated by the requirements:
 
 ```text
 OSINT-MVP/
-├── backend/               # .NET Web API, EF Core Data Access, Data Collectors (Upcoming)
+├── frontend/                                   # [1] Presentation Layer (Angular 22 SPA)
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── core/                           # OIDC/Keycloak auth, interceptors, guards
+│   │   │   ├── features/                       # Dashboard, search, collectors views
+│   │   │   ├── shared/                         # Reusable UI components & models
+│   │   │   ├── app.config.ts
+│   │   │   ├── app.routes.ts
+│   │   │   └── app.ts                          # Root standalone component
+│   │   ├── environments/                       # Environment configurations (API & Keycloak)
+│   │   └── styles.scss
+│   ├── Dockerfile                              # Multi-stage build (Node 22 -> Nginx Alpine)
+│   ├── nginx.conf                              # Nginx reverse proxy & SPA fallback
+│   ├── package.json                            # Angular 22.2, RxJS, TypeScript
 │   └── README.md
-├── frontend/              # Angular SPA Client, OIDC Authentication, Dashboard UI (Upcoming)
+│
+├── backend/                                    # .NET 10 Modular Monolith
+│   ├── OsintPlatform.sln                       # Standard SLN solution file
+│   ├── OsintPlatform.slnx                      # Modern XML solution format (.NET 10)
+│   ├── Dockerfile                              # Multi-stage build (.NET 10 SDK -> ASP.NET 10 runtime)
+│   ├── README.md
+│   └── src/
+│       ├── OsintPlatform.Api/                  # [2] Web API Layer
+│       │   ├── Controllers/                    # HealthController, REST endpoints
+│       │   ├── Program.cs                      # Host configuration, CORS, HealthChecks, OpenAPI
+│       │   ├── appsettings.json                # Database and Keycloak configuration
+│       │   └── Properties/launchSettings.json  # Dev ports: 5000 (HTTP), 5001 (HTTPS)
+│       │
+│       ├── OsintPlatform.Core/                 # Shared Domain & Contracts
+│       │   ├── Entities/                       # Domain entities
+│       │   ├── Interfaces/                     # IDataCollector, IRecordRepository
+│       │   ├── DTOs/
+│       │   └── Enums/
+│       │
+│       ├── OsintPlatform.Persistence/          # [3] Data Persistence Layer (EF Core, MySQL)
+│       │   ├── Context/                        # OsintDbContext
+│       │   ├── Configurations/                 # Fluent API entity configurations
+│       │   ├── Repositories/                   # Data access repositories
+│       │   └── Migrations/                     # EF Core schema migrations
+│       │
+│       └── OsintPlatform.Collectors/           # [4] Data Collectors Module
+│           ├── Modules/
+│           │   ├── FileCollector/              # Sample CSV / JSON file processor
+│           │   └── Synthetic/                  # Deterministic synthetic data simulator
+│           └── Services/                       # Execution and lifecycle coordinator
+│
+├── docker/                                     # IAM & database configurations
+│   ├── keycloak/                               # Keycloak realm export JSON
+│   ├── ldap/                                   # OpenLDAP seed LDIF (users, groups)
+│   └── mysql/init/                             # MySQL initialization scripts
+├── docs/                                       # [5] System documentation & architecture decisions
 │   └── README.md
-├── docker/                # Infrastructure configurations
-│   ├── keycloak/          # Keycloak realm export JSON (auto-imported on startup)
-│   ├── ldap/              # OpenLDAP seed LDIF (users, groups)
-│   └── mysql/init/        # MySQL initialization scripts (databases, privileges)
-├── docs/                  # Architecture notes and decision records
-│   └── README.md
-├── .env.example           # Configuration template with default non-sensitive values
-├── docker-compose.yml     # Infrastructure orchestration definition
-├── init.ps1               # Automated PowerShell bootstrap and status script
-└── README.md              # Project documentation and start guide
+├── .env.example                                # Environment template (ports, credentials)
+├── docker-compose.yml                          # Container orchestration definition (all 5 services)
+├── init.ps1                                    # Automated PowerShell bootstrap and status script
+└── README.md                                   # Project documentation and start guide
 ```
 
 ---
 
 ## System Requirements & Resource Allocation
-
-As specified in the assessment requirements, the infrastructure needs the following resources to execute reliably:
 
 ### Hardware Requirements
 | Resource | Minimum Requirement | Recommended Allocation |
@@ -62,48 +102,53 @@ As specified in the assessment requirements, the infrastructure needs the follow
 | **Disk Space** | 5 GB free disk space | 10 GB free space (Docker images + volumes) |
 | **Operating System** | Windows 10/11 with WSL2, Linux (Ubuntu 20.04+), or macOS |
 
-### Exact Software Versions
-* **Docker Engine:** v25+ *(Tested on v29.8.2)*
-* **Docker Compose:** v2.20+ *(Tested on Compose v5.6.0)*
+### Exact Software & Framework Versions
+* **Docker Engine:** `v25+` *(Tested on v29.8.2)*
+* **Docker Compose:** `v2.20+` *(Tested on Compose v5.6.0)*
+* **.NET SDK:** `10.0.401` *(Target framework: `net10.0`, C# 13/14)*
+* **Angular:** `22.2.3` *(Node.js `v22.23.2` LTS, npm `10.9.8`)*
 * **MySQL:** `8.0`
-* **Keycloak:** `24.0.5` (Quarkus runtime)
-* **OpenLDAP:** `1.5.0` (slapd)
-* **Target .NET SDK:** .NET 9 / 10
-* **Target Node.js / Angular:** Node.js v20 / v22 LTS & Angular 18/19
+* **Keycloak:** `24.0.5` *(Quarkus runtime)*
+* **OpenLDAP:** `1.5.0` *(slapd)*
 
 ---
 
-## Infrastructure Initialization & Quick Start
+## Platform Quick Start & Running Options
 
-### 1. One-Command Setup (PowerShell)
-To initialize the `.env` file, start all infrastructure containers, and display running services:
+### Option A: Complete Docker Compose Stack (One Command)
+To initialize the `.env` file, build backend and frontend images, start all 5 containers, and display service URLs:
 
 ```powershell
 .\init.ps1
 ```
 
-### 2. Manual Start via Docker Compose
-Alternatively, using standard Docker commands:
-
+Or via standard Docker Compose:
 ```bash
-# 1. Copy environment template if not present
 cp .env.example .env
-
-# 2. Start services in background
-docker compose up -d
-
-# 3. Check container health status
+docker compose up -d --build
 docker compose ps
 ```
 
-### 3. Stop or Reset Infrastructure
-```bash
-# Stop all containers
-docker compose stop
+### Option B: Local Development Execution
 
-# Stop and remove containers, networks, and persistent data volumes (clean reset)
-docker compose down -v
+#### 1. Start Infrastructure Only
+```bash
+docker compose up -d mysql openldap keycloak
 ```
+
+#### 2. Run .NET Web API Backend
+```bash
+dotnet run --project backend/src/OsintPlatform.Api --launch-profile http
+```
+Backend API will be accessible at: `http://localhost:5000`
+
+#### 3. Run Angular Frontend Client
+```bash
+cd frontend
+npm install
+npm start
+```
+Frontend SPA will be accessible at: `http://localhost:4200`
 
 ---
 
@@ -111,6 +156,10 @@ docker compose down -v
 
 | Service | Port | Internal Docker Host | URL / Endpoint |
 | :--- | :--- | :--- | :--- |
+| **Frontend Client (Angular SPA)** | `4200` | `frontend:80` | [http://localhost:4200](http://localhost:4200) |
+| **Backend API (.NET Web API)** | `5000` | `backend:8080` | [http://localhost:5000](http://localhost:5000) |
+| **Backend Health Endpoint** | `5000` | `backend:8080` | [http://localhost:5000/api/health](http://localhost:5000/api/health) |
+| **Backend OpenAPI Specification** | `5000` | `backend:8080` | [http://localhost:5000/openapi/v1.json](http://localhost:5000/openapi/v1.json) |
 | **Keycloak Admin Console** | `8080` | `keycloak:8080` | [http://localhost:8080](http://localhost:8080) |
 | **Keycloak OSINT Realm** | `8080` | `keycloak:8080` | [http://localhost:8080/realms/osint-realm](http://localhost:8080/realms/osint-realm) |
 | **OIDC Discovery Endpoint** | `8080` | `keycloak:8080` | [http://localhost:8080/realms/osint-realm/.well-known/openid-configuration](http://localhost:8080/realms/osint-realm/.well-known/openid-configuration) |
@@ -141,63 +190,19 @@ As requested by the specification (*"Document the demo environment simplificatio
 2. **Keycloak Development Mode (`start-dev`):** Runs with single-step automated realm import (`--import-realm`) so the evaluator does not need to manually configure realms, mappers, or clients in the web UI.
 3. **Single Database Instance:** A single MySQL 8.0 container hosts both the application database (`osint_db`) and Keycloak database (`keycloak_db`), minimizing host RAM consumption while maintaining isolated database schemas.
 4. **Local Fallback User:** To satisfy the requirement of LDAP failure tolerance, `local_admin` is seeded directly into Keycloak's MySQL storage.
+5. **Reverse Proxy in Frontend Nginx:** The frontend Nginx container includes an `/api/` reverse proxy pass to `backend:8080`, allowing single-origin evaluation in containerized environments.
 
 ---
 
-## Developer Integration Guide
+## Automated Testing & Verification
 
-### Backend Layer (.NET Web API)
-The .NET backend connects to MySQL and validates Keycloak JWTs:
-
-* **MySQL Connection String:**
-  ```text
-  Server=localhost;Port=3306;Database=osint_db;User=osint_user;Password=osint_db_password_dev;
-  ```
-  *(Inside Docker network: `Server=mysql;Port=3306;Database=osint_db;User=osint_user;Password=osint_db_password_dev;`)*
-
-* **OIDC JWT Authentication (`appsettings.json`):**
-  ```json
-  {
-    "Authentication": {
-      "Keycloak": {
-        "Authority": "http://localhost:8080/realms/osint-realm",
-        "Audience": "osint-backend",
-        "RequireHttpsMetadata": false
-      }
-    }
-  }
-  ```
-
-### Frontend Layer (Angular SPA)
-The Angular application uses OIDC PKCE via the pre-configured public client:
-
-* **Keycloak Realm:** `osint-realm`
-* **Client ID:** `osint-frontend`
-* **Redirect URI:** `http://localhost:4200/*`
-* **Flow:** Standard Authorization Code Flow with PKCE (S256)
-
----
-
-## Automated Testing & CI/CD Pipeline
-
-The project includes automated integration tests that run locally and in GitHub Actions CI:
-
-### 1. Run Tests Locally (PowerShell)
+### 1. Test IAM Infrastructure & OpenLDAP Integration
 ```powershell
 .\tests\test-iam.ps1
 ```
 
-### 2. Run Tests on Linux / Bash
+### 2. Verify Container Health
 ```bash
-chmod +x ./tests/test-iam.sh
-./tests/test-iam.sh
+docker compose ps
 ```
-
-### 3. Continuous Integration (.github/workflows/ci.yml)
-Every push and pull request automatically triggers the CI pipeline:
-1. Spins up a clean Ubuntu runner.
-2. Initializes `.env` from template.
-3. Launches the Docker Compose infrastructure.
-4. Waits for all services (`mysql`, `openldap`, `keycloak`) to become healthy.
-5. Executes the full IAM integration test suite (OIDC discovery, LDAP logins, role mappings, and 401 security rejections).
-6. Dumps container logs on any failure and tears down infrastructure.
+All containers (`osint-mysql`, `osint-openldap`, `osint-keycloak`, `osint-backend`, `osint-frontend`) should display `healthy`.
