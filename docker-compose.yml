@@ -1,0 +1,144 @@
+services:
+  # ----------------------------------------------------------------------------
+  # MySQL Database Service (Storage for Application and Keycloak)
+  # ----------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: osint-mysql
+    restart: unless-stopped
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_APP_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - osint-network
+
+  # ----------------------------------------------------------------------------
+  # OpenLDAP Service (Test Directory with Pre-seeded Users and Groups)
+  # ----------------------------------------------------------------------------
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: osint-openldap
+    restart: unless-stopped
+    command: --copy-service --loglevel info
+    environment:
+      LDAP_ORGANISATION: ${LDAP_ORGANISATION:-OSINT Platform}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-osint.local}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-adminpassword}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-dc=osint,dc=local}
+    ports:
+      - "${LDAP_PORT:-389}:389"
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+      - ./docker/ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif:ro
+    healthcheck:
+      test: ["CMD", "ldapwhoami", "-x", "-H", "ldap://localhost", "-D", "cn=admin,dc=osint,dc=local", "-w", "adminpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - osint-network
+
+  # ----------------------------------------------------------------------------
+  # Keycloak IAM Service (OIDC Authentication & LDAP User Federation)
+  # ----------------------------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: osint-keycloak
+    restart: unless-stopped
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://mysql:3306/${MYSQL_KEYCLOAK_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+      KC_DB_USERNAME: ${MYSQL_USER}
+      KC_DB_PASSWORD: ${MYSQL_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./docker/keycloak/osint-realm.json:/opt/keycloak/data/import/osint-realm.json:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      openldap:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 25
+      start_period: 60s
+    networks:
+      - osint-network
+
+  # ----------------------------------------------------------------------------
+  # Application Services (Placeholders for upcoming Frontend & Backend layers)
+  # ----------------------------------------------------------------------------
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: osint-backend
+  #   environment:
+  #     - ConnectionStrings__DefaultConnection=Server=mysql;Database=osint_db;User=osint_user;Password=${MYSQL_PASSWORD};
+  #     - Authentication__Keycloak__Authority=http://keycloak:8080/realms/osint-realm
+  #     - Authentication__Keycloak__Audience=osint-backend
+  #   ports:
+  #     - "5000:8080"
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     keycloak:
+  #       condition: service_healthy
+  #   networks:
+  #     - osint-network
+  #
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: osint-frontend
+  #   ports:
+  #     - "4200:80"
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - osint-network
+
+networks:
+  osint-network:
+    name: osint-network
+    driver: bridge
+
+volumes:
+  mysql_data:
+    name: osint_mysql_data
+  ldap_data:
+    name: osint_ldap_data
+  ldap_config:
+    name: osint_ldap_config
