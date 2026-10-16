@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OsintPlatform.Api/OsintPlatform.Api.csproj" />
+    <Project Path="src/OsintPlatform.Collectors/OsintPlatform.Collectors.csproj" />
+    <Project Path="src/OsintPlatform.Core/OsintPlatform.Core.csproj" />
+    <Project Path="src/OsintPlatform.Persistence/OsintPlatform.Persistence.csproj" />
+  </Folder>
+</Solution>
