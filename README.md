@@ -26,20 +26,54 @@ graph TD
 
 ---
 
-## Technology Stack
-* **Frontend:** Angular (upcoming layer)
-* **Backend:** .NET 9/10 Web API (upcoming layer)
-* **Database:** MySQL 8.0 (Entity Framework Core)
-* **IAM & Directory:** Keycloak 24.0.5 & OpenLDAP 1.5.0 (OIDC User Federation)
-* **Containerization:** Docker & Docker Compose
+## Project Structure & Responsibilities
+
+The codebase follows a strict separation of concerns as mandated by the requirements:
+
+```text
+OSINT-MVP/
+├── backend/               # .NET Web API, EF Core Data Access, Data Collectors (Upcoming)
+│   └── README.md
+├── frontend/              # Angular SPA Client, OIDC Authentication, Dashboard UI (Upcoming)
+│   └── README.md
+├── docker/                # Infrastructure configurations
+│   ├── keycloak/          # Keycloak realm export JSON (auto-imported on startup)
+│   ├── ldap/              # OpenLDAP seed LDIF (users, groups)
+│   └── mysql/init/        # MySQL initialization scripts (databases, privileges)
+├── docs/                  # Architecture notes and decision records
+│   └── README.md
+├── .env.example           # Configuration template with default non-sensitive values
+├── docker-compose.yml     # Infrastructure orchestration definition
+├── init.ps1               # Automated PowerShell bootstrap and status script
+└── README.md              # Project documentation and start guide
+```
+
+---
+
+## System Requirements & Resource Allocation
+
+As specified in the assessment requirements, the infrastructure needs the following resources to execute reliably:
+
+### Hardware Requirements
+| Resource | Minimum Requirement | Recommended Allocation |
+| :--- | :--- | :--- |
+| **RAM** | 4 GB | 6–8 GB (allocated to Docker Desktop / WSL2) |
+| **CPU** | 2 vCPU Cores | 4 vCPU Cores |
+| **Disk Space** | 5 GB free disk space | 10 GB free space (Docker images + volumes) |
+| **Operating System** | Windows 10/11 with WSL2, Linux (Ubuntu 20.04+), or macOS |
+
+### Exact Software Versions
+* **Docker Engine:** v25+ *(Tested on v29.8.2)*
+* **Docker Compose:** v2.20+ *(Tested on Compose v5.6.0)*
+* **MySQL:** `8.0`
+* **Keycloak:** `24.0.5` (Quarkus runtime)
+* **OpenLDAP:** `1.5.0` (slapd)
+* **Target .NET SDK:** .NET 9 / 10
+* **Target Node.js / Angular:** Node.js v20 / v22 LTS & Angular 18/19
 
 ---
 
 ## Infrastructure Initialization & Quick Start
-
-### Prerequisites
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/) (v25+ / Docker Compose v2.20+)
-* PowerShell 5.1+ (Windows) or Bash (Linux/macOS)
 
 ### 1. One-Command Setup (PowerShell)
 To initialize the `.env` file, start all infrastructure containers, and display running services:
@@ -99,10 +133,21 @@ All accounts are pre-configured in the Docker seed and automatically imported up
 
 ---
 
+## Demo Environment Simplifications
+
+As requested by the specification (*"Dokumentáld a demókörnyezet egyszerűsítéseit"*):
+
+1. **HTTP Communication in Dev Mode:** The internal network uses standard HTTP to eliminate the requirement for installing and trusting local self-signed TLS certificates on reviewer machines.
+2. **Keycloak Development Mode (`start-dev`):** Runs with single-step automated realm import (`--import-realm`) so the evaluator does not need to manually configure realms, mappers, or clients in the web UI.
+3. **Single Database Instance:** A single MySQL 8.0 container hosts both the application database (`osint_db`) and Keycloak database (`keycloak_db`), minimizing host RAM consumption while maintaining isolated database schemas.
+4. **Local Fallback User:** To satisfy the requirement of LDAP failure tolerance, `local_admin` is seeded directly into Keycloak's MySQL storage.
+
+---
+
 ## Developer Integration Guide
 
 ### Backend Layer (.NET Web API)
-The .NET backend should connect to MySQL and validate Keycloak JWTs:
+The .NET backend connects to MySQL and validates Keycloak JWTs:
 
 * **MySQL Connection String:**
   ```text
