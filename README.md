@@ -135,7 +135,7 @@ All accounts are pre-configured in the Docker seed and automatically imported up
 
 ## Demo Environment Simplifications
 
-As requested by the specification (*"Dokumentáld a demókörnyezet egyszerűsítéseit"*):
+As requested by the specification (*"Document the demo environment simplifications"*):
 
 1. **HTTP Communication in Dev Mode:** The internal network uses standard HTTP to eliminate the requirement for installing and trusting local self-signed TLS certificates on reviewer machines.
 2. **Keycloak Development Mode (`start-dev`):** Runs with single-step automated realm import (`--import-realm`) so the evaluator does not need to manually configure realms, mappers, or clients in the web UI.
@@ -175,3 +175,29 @@ The Angular application uses OIDC PKCE via the pre-configured public client:
 * **Client ID:** `osint-frontend`
 * **Redirect URI:** `http://localhost:4200/*`
 * **Flow:** Standard Authorization Code Flow with PKCE (S256)
+
+---
+
+## Automated Testing & CI/CD Pipeline
+
+The project includes automated integration tests that run locally and in GitHub Actions CI:
+
+### 1. Run Tests Locally (PowerShell)
+```powershell
+.\tests\test-iam.ps1
+```
+
+### 2. Run Tests on Linux / Bash
+```bash
+chmod +x ./tests/test-iam.sh
+./tests/test-iam.sh
+```
+
+### 3. Continuous Integration (.github/workflows/ci.yml)
+Every push and pull request automatically triggers the CI pipeline:
+1. Spins up a clean Ubuntu runner.
+2. Initializes `.env` from template.
+3. Launches the Docker Compose infrastructure.
+4. Waits for all services (`mysql`, `openldap`, `keycloak`) to become healthy.
+5. Executes the full IAM integration test suite (OIDC discovery, LDAP logins, role mappings, and 401 security rejections).
+6. Dumps container logs on any failure and tears down infrastructure.
