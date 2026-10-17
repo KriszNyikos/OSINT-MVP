@@ -19,7 +19,27 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "OSINT Platform API",
         Version = "v1",
-        Description = "OSINT Platform .NET Web API with Keycloak JWT authentication & role-based authorization"
+        Description = "### Keycloak Authentication Guide\n\n" +
+                      "This API requires a JWT Bearer token issued by Keycloak.\n\n" +
+                      "#### 1. Retrieve your access token via CLI\n\n" +
+                      "Replace `<USERNAME>` and `<PASSWORD>` with your credentials:\n\n" +
+                      "**PowerShell:**\n" +
+                      "```powershell\n" +
+                      "$body = @{ client_id = 'osint-frontend'; grant_type = 'password'; username = '<USERNAME>'; password = '<PASSWORD>' }\n" +
+                      "(Invoke-RestMethod -Uri 'http://localhost:8080/realms/osint-realm/protocol/openid-connect/token' -Method Post -Body $body).access_token\n" +
+                      "```\n\n" +
+                      "**cURL:**\n" +
+                      "```bash\n" +
+                      "curl -s -X POST http://localhost:8080/realms/osint-realm/protocol/openid-connect/token \\\n" +
+                      "  -d \"client_id=osint-frontend\" \\\n" +
+                      "  -d \"grant_type=password\" \\\n" +
+                      "  -d \"username=<USERNAME>\" \\\n" +
+                      "  -d \"password=<PASSWORD>\" | jq -r .access_token\n" +
+                      "```\n\n" +
+                      "#### 2. Authorize in Swagger\n" +
+                      "1. Click the green **Authorize** button on the right.\n" +
+                      "2. Paste ONLY the access token into the **Value** field (do NOT type 'Bearer ', Swagger UI adds it automatically).\n" +
+                      "3. Click **Authorize** and then **Close**."
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -29,13 +49,13 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter your Keycloak access token"
+        Description = "Enter your Keycloak access token (without 'Bearer ' prefix)"
     });
 
     options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecuritySchemeReference("Bearer"),
+            new OpenApiSecuritySchemeReference("Bearer", doc),
             new List<string>()
         }
     });
