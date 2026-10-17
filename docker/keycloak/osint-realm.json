@@ -116,6 +116,18 @@
         "roles",
         "profile",
         "email"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience-osint-backend",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "osint-backend",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
       ]
     },
     {

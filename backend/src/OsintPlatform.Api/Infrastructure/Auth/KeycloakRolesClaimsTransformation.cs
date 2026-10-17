@@ -13,6 +13,9 @@ public class KeycloakRolesClaimsTransformation : IClaimsTransformation
 {
     public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
+        if (principal.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
+            return Task.FromResult(principal);
+
         var realmAccess = principal.FindFirst("realm_access");
         if (realmAccess is null)
             return Task.FromResult(principal);
@@ -21,11 +24,10 @@ public class KeycloakRolesClaimsTransformation : IClaimsTransformation
         if (!doc.RootElement.TryGetProperty("roles", out var roles))
             return Task.FromResult(principal);
 
-        var identity = (ClaimsIdentity)principal.Identity!;
         foreach (var role in roles.EnumerateArray())
         {
             var roleName = role.GetString();
-            if (!string.IsNullOrEmpty(roleName))
+            if (!string.IsNullOrEmpty(roleName) && !identity.HasClaim(ClaimTypes.Role, roleName))
                 identity.AddClaim(new Claim(ClaimTypes.Role, roleName));
         }
 

@@ -34,7 +34,9 @@ var keycloakConfig = builder.Configuration.GetSection("Authentication:Keycloak")
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        // Keycloak realm URL – the middleware fetches JWKS and issuer metadata from here automatically.
+        // Authority is used to fetch JWKS from Keycloak.
+        // In Docker this points to the internal service name (keycloak:8080) so the backend
+        // can reach Keycloak on the internal Docker network.
         options.Authority = keycloakConfig["Authority"];
 
         // Must match the "aud" claim in tokens issued for osint-backend client.
@@ -44,12 +46,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.RequireHttpsMetadata =
             bool.Parse(keycloakConfig["RequireHttpsMetadata"] ?? "true");
 
+        // In Docker, tokens are issued with the public hostname in the "iss" claim (e.g. localhost:8080)
+        // while Authority points to the internal hostname (e.g. keycloak:8080).
+        // ValidIssuers accepts both internal and external hostnames so tokens are valid regardless of origin.
+        var authority = keycloakConfig["Authority"] ?? string.Empty;
+        var validIssuer = keycloakConfig["ValidIssuer"];
+
+        var validIssuers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrEmpty(authority)) validIssuers.Add(authority);
+        if (!string.IsNullOrEmpty(validIssuer)) validIssuers.Add(validIssuer);
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,           // iss must match Authority
-            ValidateAudience = true,         // aud must match Audience
-            ValidateLifetime = true,         // exp must be in the future
-            ValidateIssuerSigningKey = true, // RS256 signature verified against JWKS
+            ValidateIssuer = true,
+            ValidIssuers = validIssuers,
+            ValidateAudience = true,
+            ValidAudience = keycloakConfig["Audience"],
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
         };
     });
 
