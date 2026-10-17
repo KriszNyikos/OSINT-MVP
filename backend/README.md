@@ -42,9 +42,14 @@ backend/
 ├── .dockerignore
 └── src/
     ├── OsintPlatform.Api/
-    │   ├── Controllers/        # HealthController, future endpoints
+    │   ├── Controllers/
+    │   │   ├── HealthController.cs     # Public health check endpoint (no auth required)
+    │   │   └── CollectionController.cs # Collection job endpoints (role-protected)
+    │   ├── Infrastructure/
+    │   │   └── Auth/
+    │   │       └── KeycloakRolesClaimsTransformation.cs  # Unpacks Keycloak realm_access.roles into ClaimTypes.Role
     │   ├── Properties/         # launchSettings.json (ports 5000 / 5001)
-    │   ├── Program.cs          # Pipeline, CORS, HealthChecks, OpenAPI
+    │   ├── Program.cs          # Pipeline, CORS, JWT auth, role policies, OpenAPI
     │   └── appsettings.json    # DB connection string & Keycloak OIDC configuration
     │
     ├── OsintPlatform.Core/
