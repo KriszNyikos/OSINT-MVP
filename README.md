@@ -191,6 +191,7 @@ As requested by the specification (*"Document the demo environment simplificatio
 3. **Single Database Instance:** A single MySQL 8.0 container hosts both the application database (`osint_db`) and Keycloak database (`keycloak_db`), minimizing host RAM consumption while maintaining isolated database schemas.
 4. **Local Fallback User:** To satisfy the requirement of LDAP failure tolerance, `local_admin` is seeded directly into Keycloak's MySQL storage.
 5. **Reverse Proxy in Frontend Nginx:** The frontend Nginx container includes an `/api/` reverse proxy pass to `backend:8080`, allowing single-origin evaluation in containerized environments.
+6. **Hardcoded Credentials in Keycloak Realm Import:** The `docker/keycloak/osint-realm.json` file contains hardcoded test user passwords (`LocalAdmin123!`, `LocalViewer123!`) and the LDAP bind credential (`adminpassword`). The Keycloak realm import format does not support environment variable substitution, so these values cannot be externalised without a pre-processing step. All affected accounts are dev-only fallback identities that do not exist in production (LDAP-sourced users are used instead).
 
 ---
 
