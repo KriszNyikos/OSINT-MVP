@@ -88,6 +88,51 @@ assert_test "MySQL Database availability (osint_db and keycloak_db)" '
     echo "$dbs" | grep -q "osint_db" && echo "$dbs" | grep -q "keycloak_db"
 '
 
+# Test 8: Backend API Health Check
+assert_test "Backend API Health Endpoint (/health)" '
+    code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health)
+    [ "$code" -eq 200 ]
+'
+
+# Test 9: Backend JWT Authentication (Status with admin token)
+assert_test "Backend JWT Authentication (GET /api/collection/status)" '
+    token=$(curl -s -X POST "http://localhost:8080/realms/osint-realm/protocol/openid-connect/token" \
+        -d "grant_type=password" \
+        -d "client_id=osint-frontend" \
+        -d "username=admin_user" \
+        -d "password=AdminPassword123!" | grep -o "\"access_token\": *\"[^\"]*\"" | cut -d "\"" -f4)
+    code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" http://localhost:5000/api/collection/status)
+    [ "$code" -eq 200 ]
+'
+
+# Test 10: Backend Role Authorization - Admin allowed to start collection (202)
+assert_test "Backend Role Authorization: Admin allowed to start collection (202)" '
+    token=$(curl -s -X POST "http://localhost:8080/realms/osint-realm/protocol/openid-connect/token" \
+        -d "grant_type=password" \
+        -d "client_id=osint-frontend" \
+        -d "username=admin_user" \
+        -d "password=AdminPassword123!" | grep -o "\"access_token\": *\"[^\"]*\"" | cut -d "\"" -f4)
+    code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer $token" http://localhost:5000/api/collection/start)
+    [ "$code" -eq 202 ]
+'
+
+# Test 11: Backend Role Authorization - Viewer forbidden to start collection (403)
+assert_test "Backend Role Authorization: Viewer forbidden to start collection (403)" '
+    token=$(curl -s -X POST "http://localhost:8080/realms/osint-realm/protocol/openid-connect/token" \
+        -d "grant_type=password" \
+        -d "client_id=osint-frontend" \
+        -d "username=viewer_user" \
+        -d "password=ViewerPassword123!" | grep -o "\"access_token\": *\"[^\"]*\"" | cut -d "\"" -f4)
+    code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer $token" http://localhost:5000/api/collection/start)
+    [ "$code" -eq 403 ]
+'
+
+# Test 12: Backend Security: Rejection of unauthenticated requests (401)
+assert_test "Backend Security: Rejection of unauthenticated requests (401)" '
+    code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/collection/status)
+    [ "$code" -eq 401 ]
+'
+
 echo ""
 echo "=========================================================="
 echo "  Test Summary: Total: $TOTAL | Passed: $PASSED | Failed: $FAILED"

@@ -176,6 +176,89 @@ Assert-Test "MySQL Database availability (osint_db and keycloak_db)" {
 }
 
 # ------------------------------------------------------------------------------
+# Test 8: Backend API Health Check
+# ------------------------------------------------------------------------------
+Assert-Test "Backend API Health Endpoint (/health)" {
+    $response = Invoke-RestMethod -Uri "http://localhost:5000/health" -Method Get
+    if ($response -ne "Healthy") {
+        throw "Expected 'Healthy', received: $response"
+    }
+    return $true
+}
+
+# ------------------------------------------------------------------------------
+# Test 9: Backend JWT Authentication (Status with token)
+# ------------------------------------------------------------------------------
+Assert-Test "Backend JWT Authentication (GET /api/collection/status)" {
+    $tokenRes = Invoke-RestMethod -Uri "http://localhost:8080/realms/osint-realm/protocol/openid-connect/token" -Method Post -Body @{
+        client_id  = "osint-frontend"
+        grant_type = "password"
+        username   = "admin_user"
+        password   = "AdminPassword123!"
+    }
+    $res = Invoke-RestMethod -Uri "http://localhost:5000/api/collection/status" -Method Get -Headers @{ Authorization = "Bearer $($tokenRes.access_token)" }
+    if ($res.status -ne "idle") {
+        throw "Unexpected status returned: $($res.status)"
+    }
+    return $true
+}
+
+# ------------------------------------------------------------------------------
+# Test 10: Backend Role Authorization - Admin allowed (202)
+# ------------------------------------------------------------------------------
+Assert-Test "Backend Role Authorization: Admin allowed to start collection (202)" {
+    $tokenRes = Invoke-RestMethod -Uri "http://localhost:8080/realms/osint-realm/protocol/openid-connect/token" -Method Post -Body @{
+        client_id  = "osint-frontend"
+        grant_type = "password"
+        username   = "admin_user"
+        password   = "AdminPassword123!"
+    }
+    $res = Invoke-RestMethod -Uri "http://localhost:5000/api/collection/start" -Method Post -Headers @{ Authorization = "Bearer $($tokenRes.access_token)" }
+    if (-not $res.message) {
+        throw "Expected message in response, got none"
+    }
+    return $true
+}
+
+# ------------------------------------------------------------------------------
+# Test 11: Backend Role Authorization - Viewer forbidden (403)
+# ------------------------------------------------------------------------------
+Assert-Test "Backend Role Authorization: Viewer forbidden to start collection (403)" {
+    $tokenRes = Invoke-RestMethod -Uri "http://localhost:8080/realms/osint-realm/protocol/openid-connect/token" -Method Post -Body @{
+        client_id  = "osint-frontend"
+        grant_type = "password"
+        username   = "viewer_user"
+        password   = "ViewerPassword123!"
+    }
+    try {
+        $null = Invoke-RestMethod -Uri "http://localhost:5000/api/collection/start" -Method Post -Headers @{ Authorization = "Bearer $($tokenRes.access_token)" }
+        throw "Expected 403 Forbidden, but request succeeded!"
+    } catch {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        if ($statusCode -ne 403) {
+            throw "Expected status code 403, received: $statusCode"
+        }
+    }
+    return $true
+}
+
+# ------------------------------------------------------------------------------
+# Test 12: Backend Security: Rejection of unauthenticated requests (401)
+# ------------------------------------------------------------------------------
+Assert-Test "Backend Security: Rejection of unauthenticated requests (401)" {
+    try {
+        $null = Invoke-RestMethod -Uri "http://localhost:5000/api/collection/status" -Method Get
+        throw "Expected 401 Unauthorized, but request succeeded!"
+    } catch {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+        if ($statusCode -ne 401) {
+            throw "Expected status code 401, received: $statusCode"
+        }
+    }
+    return $true
+}
+
+# ------------------------------------------------------------------------------
 # Summary
 # ------------------------------------------------------------------------------
 Write-Host "`n==========================================================" -ForegroundColor Cyan

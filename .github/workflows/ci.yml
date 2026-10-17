@@ -5,15 +5,15 @@ on:
     branches:
       - main
       - master
-      - "1-ticket-*"
   pull_request:
     branches:
       - main
       - master
+  workflow_dispatch:
 
 jobs:
   infrastructure-and-iam-tests:
-    name: Docker Infrastructure & IAM Smoke Tests
+    name: Docker Infrastructure, IAM & Backend API Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -24,15 +24,16 @@ jobs:
         run: cp .env.example .env
 
       - name: Start Docker infrastructure
-        run: docker compose up -d
+        run: docker compose up -d --build
 
       - name: Wait for services to become healthy
         run: |
-          echo "Waiting for osint-mysql, osint-openldap, and osint-keycloak to report healthy..."
+          echo "Waiting for osint-mysql, osint-openldap, osint-keycloak, and osint-backend to report healthy..."
           timeout 180 bash -c '
             until [ "$(docker inspect -f {{.State.Health.Status}} osint-keycloak 2>/dev/null)" == "healthy" ] && \
                   [ "$(docker inspect -f {{.State.Health.Status}} osint-mysql 2>/dev/null)" == "healthy" ] && \
-                  [ "$(docker inspect -f {{.State.Health.Status}} osint-openldap 2>/dev/null)" == "healthy" ]; do
+                  [ "$(docker inspect -f {{.State.Health.Status}} osint-openldap 2>/dev/null)" == "healthy" ] && \
+                  [ "$(docker inspect -f {{.State.Health.Status}} osint-backend 2>/dev/null)" == "healthy" ]; do
               echo "Waiting for containers to be healthy... (Keycloak: $(docker inspect -f {{.State.Health.Status}} osint-keycloak 2>/dev/null || echo starting))"
               sleep 5
             done
